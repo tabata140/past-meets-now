@@ -31,10 +31,33 @@ const app = initializeApp({
 });
 const db = getDatabase(app);
 
+const SHEETS_URL = "https://script.google.com/macros/s/AKfycbz5p4EyqNnNdM-km1qE1E3PiVuyHsFyA9eQ2qElcjAjp9BwY7wLcCxtV8bvx48yeYUX/exec";
 const MAX_SLOTS = 5;
 let myName = null;
 let mySlot = null;
 let watchId = null;
+let lastLat = null;
+let lastLon = null;
+
+async function writeToSheets(name, lat, lon, accuracy, slot) {
+  try {
+    await fetch(SHEETS_URL, {
+      method: "POST",
+      mode: "no-cors",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        timestamp: new Date().toISOString(),
+        name: name,
+        latitude: lat,
+        longitude: lon,
+        accuracy: accuracy,
+        slot: slot
+      })
+    });
+  } catch (e) {
+    console.log("Sheets書き込みエラー:", e);
+  }
+}
 
 window.start = async function() {
   const name = document.getElementById("name").value.trim();
@@ -43,12 +66,10 @@ window.start = async function() {
   document.getElementById("status").textContent = "スロット確認中...";
   document.getElementById("join-btn").disabled = true;
 
-  // スロット管理
   const slotsRef = ref(db, "slots");
   const snapshot = await get(slotsRef);
   const slots = snapshot.val() || {};
 
-  // 空きスロットを探す
   let assignedSlot = null;
   for (let i = 1; i <= MAX_SLOTS; i++) {
     if (!slots[i]) {
@@ -66,23 +87,26 @@ window.start = async function() {
   myName = name;
   mySlot = assignedSlot;
 
-  // スロットを予約
   await set(ref(db, `slots/${mySlot}`), name);
 
-  // UI更新
   document.getElementById("name").disabled = true;
   document.getElementById("join-btn").style.display = "none";
   document.getElementById("leave-btn").style.display = "block";
   document.getElementById("slot-info").textContent = `参加中：User${mySlot} として接続しています`;
   document.getElementById("status").textContent = "GPS取得中...";
 
-  // GPS送信開始
-  watchId = navigator.geolocation.watchPosition((pos) => {
+  watchId = navigator.geolocation.watchPosition(async (pos) => {
     const lat = pos.coords.latitude;
     const lon = pos.coords.longitude;
     const acc = Math.round(pos.coords.accuracy);
 
-    set(ref(db, `users/${name}`), {
+    // 前回と同じ座標なら書き込まない
+    if (lat === lastLat && lon === lastLon) return;
+    lastLat = lat;
+    lastLon = lon;
+
+    // Firebaseに書き込む
+    await set(ref(db, `users/${name}`), {
       name: name,
       lat: lat,
       lon: lon,
@@ -90,6 +114,9 @@ window.start = async function() {
       slot: mySlot,
       timestamp: Date.now()
     });
+
+    // Sheetsにも書き込む
+    await writeToSheets(name, lat, lon, acc, mySlot);
 
     document.getElementById("status").textContent = `送信中 📍 精度${acc}m`;
 
@@ -114,6 +141,8 @@ window.leave = async function() {
   myName = null;
   mySlot = null;
   watchId = null;
+  lastLat = null;
+  lastLon = null;
 }
 </script>
 </body>
