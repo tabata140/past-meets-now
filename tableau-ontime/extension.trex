@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest manifest-version="0.1" xmlns="http://www.tableau.com/xml/extension_manifest">
+  <dashboard-extension id="com.tableau.ontime.extension" extension-version="0.1.0">
+    <default-locale>en_US</default-locale>
+    <name resource-id="name"/>
+    <description>Tableau On Time - Real-time location tracking</description>
+    <author name="TabataEtsuro" email="tabata.etsuro@gmail.com" organization="Tableau On Time" website="https://tabata2026.netlify.app"/>
+    <min-api-version>1.4</min-api-version>
+    <source-location>
+      <url>https://tabata2026.netlify.app/extension.html</url>
+    </source-location>
+    <icon>iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAABmJLR0QA/wD/AP+gvaeTAAAACXBIWXMAAAsTAAALEwEAmpwYAAAAB3RJTUUH4QMRAQwSbXrdqAAAAB1pVFh0Q29tbWVudAAAAAAAQ3JlYXRlZCB3aXRoIEdJTVBkLmUHAAAAKklEQVQ4y2NgYGD4z0A6YBx1gAENAAIAAP//AwAI/AL+hc2rNAAAAABJRU5ErkJggg==</icon>
+    <permissions>
+      <permission>full data</permission>
+    </permissions>
+  </dashboard-extension>
+</manifest>

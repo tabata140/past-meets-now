@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./tableau.extensions.1.latest.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+</head>
+<body>
+  <div id="status" style="font-family:sans-serif;padding:8px;font-size:12px;color:#666;">
+    初期化中...
+  </div>
+
+<script>
+firebase.initializeApp({
+  databaseURL: "https://tableau-ontime-default-rtdb.firebaseio.com/"
+});
+const db = firebase.database();
+
+const slots = [
+  { lat: "User1_Lat", lon: "User1_Lon", name: "User1_Name" },
+  { lat: "User2_Lat", lon: "User2_Lon", name: "User2_Name" },
+  { lat: "User3_Lat", lon: "User3_Lon", name: "User3_Name" },
+  { lat: "User4_Lat", lon: "User4_Lon", name: "User4_Name" },
+  { lat: "User5_Lat", lon: "User5_Lon", name: "User5_Name" },
+];
+
+let pendingUsers = null;
+let updateTimer = null;
+
+async function resetAllSlots(params) {
+  for (let i = 0; i < slots.length; i++) {
+    const slot = slots[i];
+    const latParam = params.find(p => p.name === slot.lat);
+    const lonParam = params.find(p => p.name === slot.lon);
+    const nameParam = params.find(p => p.name === slot.name);
+    if (latParam) await latParam.changeValueAsync(0);
+    if (lonParam) await lonParam.changeValueAsync(0);
+    if (nameParam) await nameParam.changeValueAsync("");
+  }
+}
+
+async function updateTableau(users, dashboard) {
+  if (!users) {
+    const params = await dashboard.getParametersAsync();
+    await resetAllSlots(params);
+    return;
+  }
+
+  const params = await dashboard.getParametersAsync();
+  await resetAllSlots(params);
+
+  const userList = Object.values(users).sort((a, b) => (a.slot || 99) - (b.slot || 99));
+
+  for (let i = 0; i < userList.length && i < slots.length; i++) {
+    const user = userList[i];
+    const slotIndex = (user.slot || i + 1) - 1;
+    if (slotIndex >= slots.length) continue;
+
+    const slot = slots[slotIndex];
+    const latParam = params.find(p => p.name === slot.lat);
+    const lonParam = params.find(p => p.name === slot.lon);
+    const nameParam = params.find(p => p.name === slot.name);
+
+    if (latParam) await latParam.changeValueAsync(user.lat);
+    if (lonParam) await lonParam.changeValueAsync(user.lon);
+    if (nameParam) await nameParam.changeValueAsync(user.name);
+
+    console.log(`Slot${slotIndex + 1} ${user.name}: lat=${user.lat}, lon=${user.lon}`);
+  }
+
+  document.getElementById("status").textContent =
+    `監視中... ${userList.length}人参加中`;
+}
+
+tableau.extensions.initializeAsync().then(async () => {
+  const dashboard = tableau.extensions.dashboardContent.dashboard;
+  document.getElementById("status").textContent = "初期化中...";
+
+  // 起動時に全スロットをリセット
+  const params = await dashboard.getParametersAsync();
+  await resetAllSlots(params);
+
+  document.getElementById("status").textContent = "監視中...";
+
+  db.ref("users").on("value", (snapshot) => {
+    pendingUsers = snapshot.val();
+
+    if (updateTimer) return;
+
+    updateTimer = setTimeout(async () => {
+      await updateTableau(pendingUsers, dashboard);
+      updateTimer = null;
+    }, 2000);
+  });
+
+}).catch(err => {
+  console.log("error:", err);
+  document.getElementById("status").textContent = "エラー: " + err;
+});
+</script>
+</body>
+</html>
