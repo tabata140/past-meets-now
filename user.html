@@ -14,24 +14,24 @@
   </style>
 </head>
 <body>
-  <h2>Tableau On Time</h2>
-  <p>名前を入力して参加してください</p>
-  <input type="text" id="name" placeholder="あなたの名前">
-  <button id="join-btn" onclick="start()">参加する</button>
-  <button id="leave-btn" onclick="leave()">退出する</button>
+  <h2>Past meets Now</h2>
+  <p>Enter your name to join</p>
+  <input type="text" id="name" placeholder="Your name">
+  <button id="join-btn" onclick="start()">Join</button>
+  <button id="leave-btn" onclick="leave()">Leave</button>
   <div id="slot-info"></div>
-  <div id="status">待機中...</div>
+  <div id="status">Waiting...</div>
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { getDatabase, ref, set, get, remove } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 
 const app = initializeApp({
-  databaseURL: "https://tableau-ontime-default-rtdb.firebaseio.com/"
+  databaseURL: "https://past-meets-now-default-rtdb.firebaseio.com/"
 });
 const db = getDatabase(app);
 
-const SHEETS_URL = "https://script.google.com/macros/s/AKfycbyQfy25g6hjl07drhfmGo5EQ5xB2Sq5YZ_kyHMozE8uqsTr5ZkmE6Wf65S9LjW0OUcZ/exec";
+const SHEETS_URL = "https://script.google.com/macros/s/AKfycbyCcFWVcUVOx9cbM16JUwC_FQTTK9GFdp008arV4lDNzaFY6V7oMAgiKRJUDrJiy3vd2w/exec";
 const MAX_SLOTS = 5;
 let myName = null;
 let mySlot = null;
@@ -55,15 +55,15 @@ async function writeToSheets(name, lat, lon, accuracy, slot) {
       })
     });
   } catch (e) {
-    console.log("Sheets書き込みエラー:", e);
+    console.log("Sheets write error:", e);
   }
 }
 
 window.start = async function() {
   const name = document.getElementById("name").value.trim();
-  if (!name) { alert("名前を入力してください"); return; }
+  if (!name) { alert("Please enter your name"); return; }
 
-  document.getElementById("status").textContent = "スロット確認中...";
+  document.getElementById("status").textContent = "Checking slots...";
   document.getElementById("join-btn").disabled = true;
 
   const slotsRef = ref(db, "slots");
@@ -79,7 +79,7 @@ window.start = async function() {
   }
 
   if (!assignedSlot) {
-    document.getElementById("status").textContent = "定員に達しています（最大5名）";
+    document.getElementById("status").textContent = "Session full (max 5 users)";
     document.getElementById("join-btn").disabled = false;
     return;
   }
@@ -92,20 +92,18 @@ window.start = async function() {
   document.getElementById("name").disabled = true;
   document.getElementById("join-btn").style.display = "none";
   document.getElementById("leave-btn").style.display = "block";
-  document.getElementById("slot-info").textContent = `参加中：User${mySlot} として接続しています`;
-  document.getElementById("status").textContent = "GPS取得中...";
+  document.getElementById("slot-info").textContent = `Connected as User${mySlot}`;
+  document.getElementById("status").textContent = "Getting GPS...";
 
   watchId = navigator.geolocation.watchPosition(async (pos) => {
     const lat = pos.coords.latitude;
     const lon = pos.coords.longitude;
     const acc = Math.round(pos.coords.accuracy);
 
-    // 前回と同じ座標なら書き込まない
     if (lat === lastLat && lon === lastLon) return;
     lastLat = lat;
     lastLon = lon;
 
-    // Firebaseに書き込む
     await set(ref(db, `users/${name}`), {
       name: name,
       lat: lat,
@@ -115,13 +113,12 @@ window.start = async function() {
       timestamp: Date.now()
     });
 
-    // Sheetsにも書き込む
     await writeToSheets(name, lat, lon, acc, mySlot);
 
-    document.getElementById("status").textContent = `送信中 📍 精度${acc}m`;
+    document.getElementById("status").textContent = `Sending 📍 Accuracy: ${acc}m`;
 
   }, (err) => {
-    document.getElementById("status").textContent = "GPSエラー: " + err.message;
+    document.getElementById("status").textContent = "GPS Error: " + err.message;
   }, { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 });
 }
 
@@ -136,7 +133,7 @@ window.leave = async function() {
   document.getElementById("join-btn").style.display = "block";
   document.getElementById("leave-btn").style.display = "none";
   document.getElementById("slot-info").textContent = "";
-  document.getElementById("status").textContent = "待機中...";
+  document.getElementById("status").textContent = "Waiting...";
 
   myName = null;
   mySlot = null;
